@@ -74,7 +74,7 @@ static const int CLIBS = 0;
 /*
 ** unload library 'lib'
 */
-static void lsys_unloadlib (void *lib);
+void lsys_unloadlib (void *lib);
 
 /*
 ** load C library in file 'path'. If 'seeglb', load with all names in
@@ -82,14 +82,14 @@ static void lsys_unloadlib (void *lib);
 ** Returns the library; in case of error, returns NULL plus an
 ** error string in the stack.
 */
-static void *lsys_load (lua_State *L, const char *path, int seeglb);
+void *lsys_load (lua_State *L, const char *path, int seeglb);
 
 /*
 ** Try to find a function named 'sym' in library 'lib'.
 ** Returns the function; in case of error, returns NULL plus an
 ** error string in the stack.
 */
-static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym);
+lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym);
 
 
 
@@ -118,19 +118,19 @@ static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym);
 #endif
 
 
-static void lsys_unloadlib (void *lib) {
+void lsys_unloadlib (void *lib) {
   dlclose(lib);
 }
 
 
-static void *lsys_load (lua_State *L, const char *path, int seeglb) {
+void *lsys_load (lua_State *L, const char *path, int seeglb) {
   void *lib = dlopen(path, RTLD_NOW | (seeglb ? RTLD_GLOBAL : RTLD_LOCAL));
   if (lib == NULL) lua_pushstring(L, dlerror());
   return lib;
 }
 
 
-static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
+lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
   lua_CFunction f = cast_func(dlsym(lib, sym));
   if (f == NULL) lua_pushstring(L, dlerror());
   return f;
@@ -192,12 +192,12 @@ static void pusherror (lua_State *L) {
     lua_pushfstring(L, "system error %d\n", error);
 }
 
-static void lsys_unloadlib (void *lib) {
+void lsys_unloadlib (void *lib) {
   FreeLibrary((HMODULE)lib);
 }
 
 
-static void *lsys_load (lua_State *L, const char *path, int seeglb) {
+void *lsys_load (lua_State *L, const char *path, int seeglb) {
   HMODULE lib = LoadLibraryExA(path, NULL, LUA_LLE_FLAGS);
   (void)(seeglb);  /* not used: symbols are 'global' by default */
   if (lib == NULL) pusherror(L);
@@ -205,7 +205,7 @@ static void *lsys_load (lua_State *L, const char *path, int seeglb) {
 }
 
 
-static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
+lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
   lua_CFunction f = (lua_CFunction)GetProcAddress((HMODULE)lib, sym);
   if (f == NULL) pusherror(L);
   return f;
@@ -213,6 +213,10 @@ static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
 
 /* }====================================================== */
 
+
+#elif defined(__EPOC32__)	/* }{ */
+
+/* defined in epoc.cpp */
 
 #else				/* }{ */
 /*
@@ -228,19 +232,19 @@ static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
 #define DLMSG	"dynamic libraries not enabled; check your Lua installation"
 
 
-static void lsys_unloadlib (void *lib) {
+void lsys_unloadlib (void *lib) {
   (void)(lib);  /* not used */
 }
 
 
-static void *lsys_load (lua_State *L, const char *path, int seeglb) {
+void *lsys_load (lua_State *L, const char *path, int seeglb) {
   (void)(path); (void)(seeglb);  /* not used */
   lua_pushliteral(L, DLMSG);
   return NULL;
 }
 
 
-static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
+lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
   (void)(lib); (void)(sym);  /* not used */
   lua_pushliteral(L, DLMSG);
   return NULL;
@@ -444,6 +448,10 @@ static const char *searchpath (lua_State *L, const char *name,
     const char *filename = luaL_gsub(L, lua_tostring(L, -1),
                                      LUA_PATH_MARK, name);
     lua_remove(L, -2);  /* remove path template */
+#if defined(__EPOC32__)
+    filename = luaL_gsub(L, lua_tostring(L, -1), LUA_DRIVE_WILDCARD, "?");
+    lua_remove(L, -2);  /* remove string with the drive mark */
+#endif
     if (readable(filename))  /* does file exist and is readable? */
       return filename;  /* return that file name */
     lua_pushfstring(L, "\n\tno file '%s'", filename);

@@ -4,20 +4,24 @@
 # == CHANGE THE SETTINGS BELOW TO SUIT YOUR ENVIRONMENT =======================
 
 # Your platform. See PLATS for possible values.
-PLAT= none
+PLAT= epoc
 
-CC= gcc -std=gnu99
+CC?= gcc -std=gnu99
+CXX= $(CC)
 CFLAGS= -O2 -Wall -Wextra -DLUA_COMPAT_5_2 $(SYSCFLAGS) $(MYCFLAGS)
+CXXFLAGS=$(CFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
-LIBS= -lm $(SYSLIBS) $(MYLIBS)
+LLDFLAGS= $(SYSLLDFLAGS) $(MYLLDFLAGS)
+LIBS= $(SYSLIBS) $(MYLIBS)
 
-AR= ar rcu
-RANLIB= ranlib
+AR= arm-epoc-pe-ar rcu
+RANLIB= arm-epoc-pe-ranlib
 RM= rm -f
 
 SYSCFLAGS=
 SYSLDFLAGS=
 SYSLIBS=
+LLDADDITIONALDEPS=
 
 MYCFLAGS=
 MYLDFLAGS=
@@ -26,18 +30,20 @@ MYOBJS=
 
 # == END OF USER SETTINGS -- NO NEED TO CHANGE ANYTHING BELOW THIS LINE =======
 
-PLATS= aix bsd c89 freebsd generic linux macosx mingw posix solaris
+PLATS= aix bsd c89 epoc freebsd generic linux macosx mingw posix solaris
 
-LUA_A=	liblua.a
+LUA_A=	liblua53static.a
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o \
-	ltm.o lundump.o lvm.o lzio.o
+	ltm.o lundump.o lvm.o lzio.o epoc.o epocdll.o
 LIB_O=	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
 	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o
 BASE_O= $(CORE_O) $(LIB_O) $(MYOBJS)
 
 LUA_T=	lua
 LUA_O=	lua.o
+LUA_L=  lua.so
+LUA_D=  luadyn
 
 LUAC_T=	luac
 LUAC_O=	luac.o
@@ -55,18 +61,29 @@ o:	$(ALL_O)
 
 a:	$(ALL_A)
 
+luaopx: liblua53.a
+	$(MAKE) -C opx
+
 $(LUA_A): $(BASE_O)
 	$(AR) $@ $(BASE_O)
 	$(RANLIB) $@
 
+$(LUA_L): $(CORE_O) $(LIB_O) $(LLDADDITIONALDEPS)
+	$(CC) -shared -o $@ $(CORE_O) $(LIB_O) $(LLDFLAGS)
+
 $(LUA_T): $(LUA_O) $(LUA_A)
 	$(CC) -o $@ $(LDFLAGS) $(LUA_O) $(LUA_A) $(LIBS)
+
+$(LUA_D): $(LUA_O) $(LUA_L) liblua53.a
+	$(CC) -o $@ $(LDFLAGS) $(LUA_O) -llua53 -L. $(LIBS)
 
 $(LUAC_T): $(LUAC_O) $(LUA_A)
 	$(CC) -o $@ $(LDFLAGS) $(LUAC_O) $(LUA_A) $(LIBS)
 
 clean:
 	$(RM) $(ALL_T) $(ALL_O)
+	$(RM) *.a *.o *.exe *.dll
+	$(MAKE) -C opx clean
 
 depend:
 	@$(CC) $(CFLAGS) -MM l*.c
@@ -100,6 +117,26 @@ c89:
 	@echo '*** C89 does not guarantee 64-bit integers for Lua.'
 	@echo ''
 
+lua53.def: 
+	$(AR) tmp.a $(BASE_O)
+	$(RANLIB) tmp.a
+	awk -f updatedef.awk tmp.a
+	rm tmp.a
+
+epoc:
+	$(MAKE) CC="arm-epoc-pe-gcc -Znoemx" \
+	LUA_D=lua.exe LUA_L=lua53.dll \
+	SYSCFLAGS="-fomit-frame-pointer -DLUA_BUILDING" SYSLIBS="-lestlib -loplr" \
+	SYSLDFLAGS="-heap 4M" \
+	SYSLLDFLAGS="-Zimplib liblua53.a lua53.def -uid3 0x10BC7B2F -lestlib -loplr" \
+	LLDADDITIONALDEPS="lua53.def" \
+	lua53.dll lua.exe luaopx
+
+#liblua53.a: lua53.def
+#	sed 's/^\s*_/ /' lua53.def | arm-epoc-pe-dlltool -l liblua53.a -d /dev/stdin -D'LUA53[10bc7b2f].DLL'
+
+epocexports.c: $(BASE_O) genexports.awk
+	awk -f genexports.awk *.c > epocexports.c
 
 freebsd:
 	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX" SYSLIBS="-Wl,-E -lreadline"

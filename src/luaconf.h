@@ -18,6 +18,8 @@
 ** ===================================================================
 */
 
+#include <e32def.h>
+#include "epoc.h"
 
 /*
 ** {====================================================================
@@ -164,11 +166,14 @@
 ** template.
 ** LUA_EXEC_DIR in a Windows path is replaced by the executable's
 ** directory.
+** LUA_DRIVE_WILDCARD in EPOC32 is substituted to the "any drive wild
+** card" (the ? character) after the "?" was substituted to the module
+** name.
 */
 #define LUA_PATH_SEP            ";"
 #define LUA_PATH_MARK           "?"
 #define LUA_EXEC_DIR            "!"
-
+#define LUA_DRIVE_WILDCARD	"!"
 
 /*
 @@ LUA_PATH_DEFAULT is the default path that Lua uses to look for
@@ -198,6 +203,19 @@
 		LUA_CDIR"..\\lib\\lua\\" LUA_VDIR "\\?.dll;" \
 		LUA_CDIR"loadall.dll;" ".\\?.dll"
 
+
+#elif defined(__EPOC32__)	/* }{ */
+
+
+#define LUA_LDIR	"!:\\Lua" LUA_VDIR "\\"
+#define LUA_CDIR	"\\Lua" LUA_VDIR "\\"
+#define LUA_SHRDIR	"!:\\Lua" LUA_VDIR "\\"
+#define LUA_PATH_DEFAULT  LUA_LDIR"?.lua;"  LUA_LDIR"?\\init.lua;"
+#define LUA_CPATH_DEFAULT \
+		"C:" LUA_CDIR"?.dll;" \
+		"D:" LUA_CDIR"?.dll;"
+
+
 #else			/* }{ */
 
 #define LUA_ROOT	"/usr/local/"
@@ -209,6 +227,7 @@
 		"./?.lua;" "./?/init.lua"
 #define LUA_CPATH_DEFAULT \
 		LUA_CDIR"?.so;" LUA_CDIR"loadall.so;" "./?.so"
+
 #endif			/* } */
 
 
@@ -217,7 +236,7 @@
 ** CHANGE it if your machine does not use "/" as the directory separator
 ** and is not Windows. (On Windows Lua automatically uses "\".)
 */
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__EPOC32__)
 #define LUA_DIRSEP	"\\"
 #else
 #define LUA_DIRSEP	"/"
@@ -249,6 +268,14 @@
 #define LUA_API __declspec(dllimport)
 #endif						/* } */
 
+#elif defined(__EPOC32__)
+
+#if defined(LUA_BUILDING)
+#define LUA_API EXPORT_C
+#else
+#define LUA_API IMPORT_C
+#endif
+
 #else				/* }{ */
 
 #define LUA_API		extern
@@ -259,7 +286,6 @@
 /* more often than not the libs go together with the core */
 #define LUALIB_API	LUA_API
 #define LUAMOD_API	LUALIB_API
-
 
 /*
 @@ LUAI_FUNC is a mark for all extern functions that are not to be
@@ -446,7 +472,7 @@
 */
 #define lua_numbertointeger(n,p) \
   ((n) >= (LUA_NUMBER)(LUA_MININTEGER) && \
-   (n) < -(LUA_NUMBER)(LUA_MININTEGER) && \
+   (n) <= (LUA_NUMBER)(LUA_MAXINTEGER) && \
       (*(p) = (LUA_INTEGER)(n), 1))
 
 
@@ -496,7 +522,7 @@
 
 #define l_mathop(op)		op
 
-#define lua_str2number(s,p)	strtod((s), (p))
+#define lua_str2number(s,p)	epoc_strtod((s), (p))
 
 #else						/* }{ */
 
@@ -602,7 +628,7 @@
 @@ l_sprintf is equivalent to 'snprintf' or 'sprintf' in C89.
 ** (All uses in Lua have only one format item.)
 */
-#if !defined(LUA_USE_C89)
+#if !defined(LUA_USE_C89) && !defined(__EPOC32__)
 #define l_sprintf(s,sz,f,i)	snprintf(s,sz,f,i)
 #else
 #define l_sprintf(s,sz,f,i)	((void)(sz), sprintf(s,f,i))
@@ -642,7 +668,7 @@
 #undef l_mathop  /* variants not available */
 #undef lua_str2number
 #define l_mathop(op)		(lua_Number)op  /* no variant */
-#define lua_str2number(s,p)	((lua_Number)strtod((s), (p)))
+#define lua_str2number(s,p)	((lua_Number)epoc_strtod((s), (p)))
 #endif
 
 
@@ -748,11 +774,19 @@
 ** smaller buffer would force a memory allocation for each call to
 ** 'string.format'.)
 */
-#if LUA_FLOAT_TYPE == LUA_FLOAT_LONGDOUBLE
+#if defined(__EPOC32__)
+/* We only have an 8kB stacks by default, so with utmost care the stack
+** shall be handled.
+*/
+#define LUAL_BUFFERSIZE 1024
+
+#elif LUA_FLOAT_TYPE == LUA_FLOAT_LONGDOUBLE
 #define LUAL_BUFFERSIZE		8192
+
 #else
 #define LUAL_BUFFERSIZE   ((int)(0x80 * sizeof(void*) * sizeof(lua_Integer)))
 #endif
+
 
 /* }================================================================== */
 
