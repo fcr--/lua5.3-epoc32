@@ -133,8 +133,8 @@ int COpxLua::LuaDispatch(lua_State *L) const {
   if ((err = iOplAPI.CallProcedure(ret)))
       this->Error(L, err);
   switch (ret) {
-    case EReturnInt:    lua_pushnumber(L, (double)iOplAPI.PopInt16());  break;
-    case EReturnLong:   lua_pushnumber(L, (double)iOplAPI.PopInt32());  break;
+    case EReturnInt:    lua_pushinteger(L, iOplAPI.PopInt16());  break;
+    case EReturnLong:   lua_pushinteger(L, iOplAPI.PopInt32());  break;
     case EReturnFloat:  lua_pushnumber(L, (double)iOplAPI.PopReal64()); break;
     case EReturnString: {
       TPtrC8 str = iOplAPI.PopString8();
