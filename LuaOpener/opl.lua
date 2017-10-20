@@ -1,26 +1,28 @@
 -- OPL bindings for Lua
 -- (c) Reuben Thomas 2001-2009
 
-opl = {}
+local _luaregister = opl._luaregister
+opl._luaregister = nil
 function opl.luaregister(declaration)
-  _luaregister(_luastate, declaration, '_luaregister.tmp')
+  _luaregister(opl._luastate, declaration, '_luaregister.tmp')
   local symbol = _G['_luaregister.tmp']
   _G['_luaregister.tmp'] = nil
   return symbol
 end
 
 for name, declaration in pairs {
-    eval = "Eval:(exp$)",
-    get = "Get%:",
-    cursoron = "CursorOn:",
+    eval      = "Eval:(exp$)",
+    get       = "Get%:",
+    cursoron  = "CursorOn:",
     cursoroff = "CursorOff:",
-    at = "At:(x%,y%)",
+    at        = "At:(x%,y%)",
     rawscreeninfo = "RawScreenInfo%:(pos%)",
-    print = "OplPrint:(s$)",
-    input = "OplInput$:",
-    alert = "OplAlert:(m$)",
-    loadm = "OplLoadM:(m$)",
-    unloadm = "OplUnloadM:(m$)"} do
+    print     = "OplPrint:(s$)",
+    input     = "OplInput$:",
+    alert     = "OplAlert:(m$)",
+    loadm     = "OplLoadM:(m$)",
+    unloadm   = "OplUnloadM:(m$)",
+    defaultwin = "OplDefaultWin:(m%)"} do
   opl[name] = opl.luaregister(declaration)
 end
 
