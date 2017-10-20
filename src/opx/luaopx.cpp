@@ -160,9 +160,30 @@ void COpxLua::Lua() const {
   lua_settop(L, top);
 }
 
+static int opl_windowfromidl(lua_State *L) {
+  int id = lua_tointeger(L, 1);
+  OplAPI * api = (OplAPI*)lua_touserdata(L, lua_upvalueindex(1));
+  lua_pushlightuserdata(L, &api->WindowFromIdL(id));
+  return 1;
+}
+
 void COpxLua::LuaOpen() const {
   lua_State *L = luaL_newstate();
   luaL_openlibs(L);
+  lua_getglobal(L, "opl");
+  if (lua_isnil(L, -1)) {
+    lua_pop(L, 1);
+    lua_newtable(L);
+  }
+  // opl._screendevice : CWsScreenDevice*
+  lua_pushlightuserdata(L, iOplAPI.ScreenDevice());
+  lua_setfield(L, -2, "_screendevice");
+
+  // opl._background : RBackedUpWindow*
+  lua_pushlightuserdata(L, &iOplAPI);
+  lua_pushcclosure(L, &opl_windowfromidl, 1);
+  lua_setfield(L, -2, "_windowfromidl");
+  lua_setglobal(L, "opl");
   // non-core libs
   //luaopen_bit(L);
   //luaopen_rex(L);
