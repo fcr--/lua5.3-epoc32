@@ -961,7 +961,7 @@ static void addliteral (lua_State *L, luaL_Buffer *b, int arg) {
         const char *format = (n == LUA_MININTEGER)  /* corner case? */
                            ? "0x%" LUA_INTEGER_FRMLEN "x"  /* use hexa */
                            : LUA_INTEGER_FMT;  /* else use default format */
-        nb = l_sprintf(buff, MAX_ITEM, format, (LUAI_UACINT)n);
+        nb = fixup_snprintf(buff, MAX_ITEM, format, (LUAI_UACINT)n);
       }
       luaL_addsize(b, nb);
       break;
@@ -1042,7 +1042,7 @@ static int str_format (lua_State *L) {
         case 'o': case 'u': case 'x': case 'X': {
           lua_Integer n = luaL_checkinteger(L, arg);
           addlenmod(form, LUA_INTEGER_FRMLEN);
-          nb = l_sprintf(buff, MAX_ITEM, form, (LUAI_UACINT)n);
+          nb = fixup_snprintf(buff, MAX_ITEM, form, (LUAI_UACINT)n);
           break;
         }
         case 'a': case 'A':

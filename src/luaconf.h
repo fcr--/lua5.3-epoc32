@@ -20,6 +20,7 @@
 
 #include <e32def.h>
 #include "epoc.h"
+#include "snprintf.h"
 
 /*
 ** {====================================================================
@@ -553,8 +554,13 @@
 
 #define LUAI_UACINT		LUA_INTEGER
 
+#if defined(__EPOC32__)
+#define lua_integer2str(s,sz,n)  \
+	fixup_snprintf(s,sz,"%lld",n)
+#else
 #define lua_integer2str(s,sz,n)  \
 	l_sprintf((s), sz, LUA_INTEGER_FMT, (LUAI_UACINT)(n))
+#endif
 
 /*
 ** use LUAI_UACINT here to avoid problems with promotions (which
@@ -567,6 +573,7 @@
 
 #if LUA_INT_TYPE == LUA_INT_INT		/* { int */
 
+#error "32 bit"
 #define LUA_INTEGER		int
 #define LUA_INTEGER_FRMLEN	""
 
@@ -575,6 +582,7 @@
 
 #elif LUA_INT_TYPE == LUA_INT_LONG	/* }{ long */
 
+#error "32 bit"
 #define LUA_INTEGER		long
 #define LUA_INTEGER_FRMLEN	"l"
 

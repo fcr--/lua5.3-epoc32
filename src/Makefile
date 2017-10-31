@@ -35,7 +35,7 @@ PLATS= aix bsd c89 epoc freebsd generic linux macosx mingw posix solaris
 LUA_A=	liblua53static.a
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o \
-	ltm.o lundump.o lvm.o lzio.o epoc.o epocdll.o
+	ltm.o lundump.o lvm.o lzio.o epoc.o epocdll.o snprintf.o
 LIB_O=	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
 	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o
 BASE_O= $(CORE_O) $(LIB_O) $(MYOBJS)
