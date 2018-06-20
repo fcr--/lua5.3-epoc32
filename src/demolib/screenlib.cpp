@@ -55,7 +55,7 @@ static int plot(lua_State * L) {
 static int drawlineto(lua_State * L) {
   TInt x = luaL_checkinteger(L, 1);
   TInt y = luaL_checkinteger(L, 2);
-  getstate(L)->gc->DrawLineBy(TPoint(x, y));
+  getstate(L)->gc->DrawLineTo(TPoint(x, y));
   return 0;
 }
 
@@ -63,6 +63,61 @@ static int drawlineby(lua_State * L) {
   TInt dx = luaL_checkinteger(L, 1);
   TInt dy = luaL_checkinteger(L, 2);
   getstate(L)->gc->DrawLineBy(TPoint(dx, dy));
+  return 0;
+}
+
+static TRect parse_rect(lua_State * L, int index) {
+  TRect t;
+  luaL_checktype(L, index, LUA_TTABLE);
+  if (lua_geti(L, index, 1) && lua_geti(L, index, 2)) {
+    t.iTl = TPoint(luaL_checkinteger(L, -2), luaL_checkinteger(L, -1));
+  } else {
+    luaL_error(L, "missing upper left point in TRect");
+  }
+  if (lua_geti(L, index, 3) && lua_geti(L, index, 4)) {
+    t.iBr = TPoint(luaL_checkinteger(L, -2), luaL_checkinteger(L, -1));
+  } else if (lua_getfield(L, index, "w") && lua_getfield(L, index, "w")) {
+    t.iBr = t.iTl + TPoint(luaL_checkinteger(L, -2), luaL_checkinteger(L, -1));
+  } else {
+    luaL_error(L, "missing bottom right point (or 'w', 'h') in TRect");
+  }
+  t.Normalize();
+  return t;
+}
+
+static int scroll(lua_State * L) {
+  struct State * state = getstate(L);
+  luaL_checktype(L, 1, LUA_TTABLE);
+  if (lua_geti(L, 1, 1) != LUA_TNUMBER ||
+      lua_geti(L, 1, 2) != LUA_TNUMBER) {
+    return luaL_error(L, "expected offset");
+  }
+  TPoint offset = TPoint(luaL_checkinteger(L, -2), luaL_checkinteger(L, -1));
+  bool has_clip = false, has_rect = false;
+  TRect clip, rect;
+  if (lua_getfield(L, 1, "clip")) {
+    clip = parse_rect(L, lua_gettop(L));
+    has_clip = true;
+  }
+  if (lua_getfield(L, 1, "rect")) {
+    rect = parse_rect(L, lua_gettop(L));
+    has_rect = true;
+  }
+  if (has_clip && has_rect) {
+    state->background->Scroll(clip, offset, rect);
+  } else if (has_rect) {
+    state->background->Scroll(offset, rect);
+  } else if (has_clip) {
+    state->background->Scroll(clip, offset);
+  } else {
+    state->background->Scroll(offset);
+  }
+  return 0;
+}
+
+static int drawrect(lua_State * L) {
+  struct State * state = getstate(L);
+  state->gc->DrawRect(parse_rect(L, 1));
   return 0;
 }
 
@@ -82,13 +137,13 @@ static int activate(lua_State * L) {
   if (lua_islightuserdata(L, 1)) {
     state->background = (RBackedUpWindow*)lua_touserdata(L, 1);
   } else {
-    int id = luaL_checkinteger(L, 1);
+    luaL_checkinteger(L, 1); // idl
     lua_getglobal(L, "opl");
     if (lua_getfield(L, -1, "_windowfromidl") != LUA_TFUNCTION)
       return luaL_error(L, "opl._windowfromidl must be defined or call this "
 	  "function with a valid RBackedUpWindow* lightuserdata instead");
     lua_pushvalue(L, 1);
-    lua_call(L, 1, 1);
+    lua_call(L, 1, 1); // opl._windowfromidl(idl)
     state->background = (RBackedUpWindow*)lua_touserdata(L, -1);
   }
   state->gc->Activate(*state->background);
@@ -116,6 +171,8 @@ EXPORT_C int luaopen_screenlib(lua_State * L) {
     {"plot", &plot},
     {"drawlineto", &drawlineto},
     {"drawlineby", &drawlineby},
+    {"scroll", &scroll},
+    {"drawrect", &drawrect},
     {"deactivate", &deactivate},
     {"activate", &activate},
     {NULL, NULL}
