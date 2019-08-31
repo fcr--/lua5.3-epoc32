@@ -1,3 +1,11 @@
+```
+############################################
+## WARNING:                               ##
+##  My Psion5 broke, and that's why this  ##
+##  project will not be supported by me.  ##
+############################################
+```
+
 Original documentation:
 ```
 This is Lua 5.3.4, released on 12 Jan 2017.
